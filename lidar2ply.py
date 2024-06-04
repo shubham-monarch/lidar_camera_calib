@@ -84,6 +84,6 @@ if __name__ == '__main__':
         if idx > 10:
             break
         points = pointcloud2_to_array(msg)
-        save_ply(points, f"{lidar2ply_dir}/pcl_{idx}.ply")
+        save_ply(points, f"{lidar2ply_dir}/lidar_{idx}.ply")
 
     

@@ -44,7 +44,7 @@ if __name__ == '__main__':
 	for frame_number in tqdm(range(total_frame_cnt - 1, total_frame_cnt - 1 - num_frames_to_process, -1), desc=f"Processing last {num_frames_to_process} frames", unit="frame"):
 		if zed.grab(runtime_parameters) == sl.ERROR_CODE.SUCCESS :			
 			zed.retrieve_measure(pointcloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU)
-			pointcloud.write( os.path.join(svo2ply_dir, f'pointcloud_{frame_counter}.ply') )
+			pointcloud.write( os.path.join(svo2ply_dir, f'svo_{frame_counter}.ply') )
 			frame_counter += 1
 
 	zed.close()
