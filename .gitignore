@@ -1,3 +1,5 @@
 *.svo
 *.bag
 *.ply
+*.pcd
+
