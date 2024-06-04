@@ -16,6 +16,7 @@ def pointcloud2numpy(msg):
 	points_list = []
 	for data in pc2.read_points(msg, field_names = ("x", "y", "z"), skip_nans=True):
 		points_list.append([data[0], data[1], data[2]])
+	print(f"{points_list[:5]}")
 	return np.array(points_list)
 
 def pointcloud2_to_array(cloud_msg):
@@ -23,7 +24,8 @@ def pointcloud2_to_array(cloud_msg):
 	point_list = list(pc2.read_points(cloud_msg, skip_nans=True, field_names=("x", "y", "z")))
 	return np.array(point_list)
 
-def save_ply(points, filename):
+def save_ply(points, filename,precision=10):
+	# print(f"{points[:5]}")
 	# Prepare the PLY file header
 	header = f'''ply
 format ascii 1.0
@@ -36,7 +38,8 @@ end_header
 	# Write header and points to file
 	with open(filename, 'w') as f:
 		f.write(header)
-		np.savetxt(f, points, fmt='%f %f %f')
+		fmt = f'%.{precision}f %.{precision}f %.{precision}f'
+		np.savetxt(f, points, fmt=fmt)
 
 
 
@@ -86,11 +89,12 @@ if __name__ == '__main__':
 		print("Reversing the bag messages!")
 	
 	reversed_bag_msgs = list(reversed(bag_msgs))[:num_messages_to_process]
+	print(f"len(reversed_bag_msgs): {len(reversed_bag_msgs)}")
 	for idx, (topic, msg, t) in enumerate(tqdm(reversed_bag_msgs, desc="Processing messages", unit="msg")):
 	#for idx, (topic, msg, t) in enumerate(reversed(bag_msgs)):
 		if idx > 10:
 			break
+		# pointcloud2numpy(msg)
 		points = pointcloud2_to_array(msg)
 		save_ply(points, f"{lidar2ply_dir}/lidar_{idx}.ply")
-
-	
+		
