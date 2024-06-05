@@ -16,20 +16,20 @@ else:
 # - remove outliers
 
 def draw_registration_result(source, target, transformation):
-	print("Inside draw_registration_result")
-	source_temp = copy.deepcopy(source)
-	target_temp = copy.deepcopy(target)
+    source_temp = source.clone()
+    target_temp = target.clone()
 
-	source_temp.transform(transformation)
+    source_temp.transform(transformation)
 
-	# This is patched version for tutorial rendering.
-	# Use `draw` function for you application.
-	o3d.visualization.draw_geometries(
-		[source_temp,target_temp],
-		zoom=0.4459,
-		front=[0.9288, -0.2951, -0.2242],
-		lookat=[1.6784, 2.0612, 1.4451],
-		up=[-0.3402, -0.9189, -0.1996])
+    # This is patched version for tutorial rendering.
+    # Use `draw` function for you application.
+    o3d.visualization.draw_geometries(
+        [source_temp.to_legacy(),
+         target_temp.to_legacy()],
+        zoom=0.4459,
+        front=[0.9288, -0.2951, -0.2242],
+        lookat=[1.6784, 2.0612, 1.4451],
+        up=[-0.3402, -0.9189, -0.1996])
 
 
 def get_pcl_aabb(pcd):
@@ -43,10 +43,10 @@ def get_pcl_aabb(pcd):
 	# print(f"Vertical span: {vertical_span}")
 	return [horizontal_span, vertical_span]
 
-def run_vanilla_icp(lidar_ply , svo_ply):
+def run_vanilla_icp(lidar_path  , svo_path):
 	
-	source = o3d.t.io.read_point_cloud(lidar_ply)
-	target = o3d.t.io.read_point_cloud(svo_ply)
+	source = o3d.t.io.read_point_cloud(lidar_path)
+	target = o3d.t.io.read_point_cloud(svo_path)
 	
 	# Example callback_after_iteration lambda function:
 	callback_after_iteration = lambda updated_result_dict : print("Iteration Index: {}, Fitness: {}, Inlier RMSE: {},".format(
@@ -65,14 +65,15 @@ def run_vanilla_icp(lidar_ply , svo_ply):
 										[0.0, 0.0, 0.0, 1.0]])
 
 	# Select the `Estimation Method`, and `Robust Kernel` (for outlier-rejection).
-	estimation = treg.TransformationEstimationPointToPlane()
+	# estimation = treg.TransformationEstimationPointToPlane()
+	estimation = treg.TransformationEstimationPointToPoint()
 
 	# Convergence-Criteria for Vanilla ICP
 	criteria = treg.ICPConvergenceCriteria(relative_fitness=0.000001,
 										relative_rmse=0.000001,
 										max_iteration=50)
 	# Down-sampling voxel-size.
-	voxel_size = 0.00025
+	voxel_size = 0.025
 
 	# Save iteration wise `fitness`, `inlier_rmse`, etc. to analyse and tune result.
 	save_loss_log = True
@@ -94,11 +95,11 @@ def run_vanilla_icp(lidar_ply , svo_ply):
 
 if __name__ == "__main__":
 	
-	lidar_ply = "lidar2ply/lidar_0.ply"
-	svo_ply = "svo2ply/svo_0.ply"
+	lidar_path = "lidar2ply/lidar_0.ply"
+	svo_path = "svo2ply/svo_0.ply"
 	
-	lidar_pcd = o3d.io.read_point_cloud(lidar_ply, remove_nan_points=True, remove_infinite_points=True)
-	svo_pcd = o3d.io.read_point_cloud(svo_ply, remove_nan_points=True, remove_infinite_points=True) 
+	# lidar_pcd = o3d.io.read_point_cloud(lidar_ply, remove_nan_points=True, remove_infinite_points=True)
+	# svo_pcd = o3d.io.read_point_cloud(svo_ply, remove_nan_points=True, remove_infinite_points=True) 
 	
 	# lidar_pcd = o3d.io.read_point_cloud(lidar_ply)
 	# svo_pcd = o3d.io.read_point_cloud(svo_ply) 
@@ -109,5 +110,7 @@ if __name__ == "__main__":
 	print(f"{o3d.__DEVICE_API__}")
 
 	# run_vanilla_icp(lidar_ply, svo_ply)
-	print(f"lidar_pcl_span: {get_pcl_aabb(lidar_pcd)}")
-	print(f"svo_pcl_span: {get_pcl_aabb(svo_pcd)}")
+	print(f"lidar_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(lidar_path))}")
+	print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
+
+	run_vanilla_icp(lidar_path, svo_path)
