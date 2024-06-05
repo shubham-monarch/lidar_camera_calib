@@ -6,9 +6,9 @@ import copy
 import time
 
 if o3d.__DEVICE_API__ == 'cuda':
-    import open3d.cuda.pybind.t.pipelines.registration as treg
+	import open3d.cuda.pybind.t.pipelines.registration as treg
 else:
-    import open3d.cpu.pybind.t.pipelines.registration as treg
+	import open3d.cpu.pybind.t.pipelines.registration as treg
 
 # TO-DO: 
 # - multilevel icp , robust icp
@@ -16,20 +16,41 @@ else:
 # - remove outliers
 
 def draw_registration_result(source, target, transformation):
-    source_temp = source.clone()
-    target_temp = target.clone()
+	source_temp = source.clone()
+	target_temp = target.clone()
 
-    source_temp.transform(transformation)
+	source_temp.transform(transformation)
+	
+	# source_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=200, origin=[0, 0, 0])
+	# target_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=[0, 0, 0])
 
-    # This is patched version for tutorial rendering.
-    # Use `draw` function for you application.
-    o3d.visualization.draw_geometries(
-        [source_temp.to_legacy(),
-         target_temp.to_legacy()],
-        zoom=0.4459,
-        front=[0.9288, -0.2951, -0.2242],
-        lookat=[1.6784, 2.0612, 1.4451],
-        up=[-0.3402, -0.9189, -0.1996])
+	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[0, 0, 0])
+	frame2 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[0, 0, 0])
+    
+	tf1 = np.asarray([[1.0, 0.0 , 0,  0],
+					[0 , 1.0, 0, 0],
+					[0 , 0, 1.0, 0],
+					[0.0, 0.0, 0.0, 1.0]])
+
+	tf2 = np.asarray([[1.0, 0.0 , 0,  0],
+					[0 , 1.0, 0, 60],
+					[0 , 0, 1.0, 0],
+					[0.0, 0.0, 0.0, 1.0]])
+
+	frame1.transform(tf1)
+	frame2.transform(tf2)	
+
+	# This is patched version for tutorial rendering.
+	# Use `draw` function for you application.
+	o3d.visualization.draw_geometries(
+		[source_temp.to_legacy(),
+		 source.to_legacy(),
+		 frame1,
+		 frame2],
+		zoom=0.4459,
+		front=[0.9288, -0.2951, -0.2242],
+		lookat=[1.6784, 2.0612, 1.4451],
+		up=[-0.3402, -0.9189, -0.1996])
 
 
 def get_pcl_aabb(pcd):
@@ -50,13 +71,13 @@ def run_vanilla_icp(lidar_path  , svo_path):
 	
 	# Example callback_after_iteration lambda function:
 	callback_after_iteration = lambda updated_result_dict : print("Iteration Index: {}, Fitness: {}, Inlier RMSE: {},".format(
-    updated_result_dict["iteration_index"].item(),
-    updated_result_dict["fitness"].item(), 
-    updated_result_dict["inlier_rmse"].item()))
+	updated_result_dict["iteration_index"].item(),
+	updated_result_dict["fitness"].item(), 
+	updated_result_dict["inlier_rmse"].item()))
 
 
 	# Search distance for Nearest Neighbour Search [Hybrid-Search is used].
-	max_correspondence_distance = 0.07
+	max_correspondence_distance = 7
 
 	# Initial alignment or source to target transform.
 	init_source_to_target = np.asarray([[0.862, 0.011, -0.507, 0.5],
@@ -113,4 +134,20 @@ if __name__ == "__main__":
 	print(f"lidar_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(lidar_path))}")
 	print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
 
-	run_vanilla_icp(lidar_path, svo_path)
+	# transformation = np.array()
+	init_transformation = np.eye(4)
+	print(f"Initial Transformation: {init_transformation}")
+
+	
+	# rotate 90 dgree around Y-axis
+	rot_1 = np.array([[0, 0, -1, 0],
+					  [0, 1, 0, 0],
+					  [-1, 0, 0, 0],
+					  [0, 0, 0, 1]])
+
+	final_transformation = init_transformation @ rot_1
+
+	print(f"Final Transformation: {final_transformation}")
+
+	draw_registration_result(o3d.t.io.read_point_cloud(lidar_path), o3d.t.io.read_point_cloud(svo_path), final_transformation)
+	# run_vanilla_icp(lidar_path, svo_path)
