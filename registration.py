@@ -80,10 +80,10 @@ def draw_registration_result(source, target, transformation):
 
 	target_temp = target.clone()
 
-	source_a.paint_uniform_color([255, 0, 0])  # Red color
-	source_a.transform(transformation)
+	source_a.paint_uniform_color([1.0, 0.0, 0.0])  # Red color
+	source_a.transform(transformation) 
 
-	source_b.paint_uniform_color([0, 0, 255])  # Blue color
+	source_b.paint_uniform_color([0.0, 0.0,1.0])  # Blue color
 	
 	# source_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=200, origin=[0, 0, 0])
 	# target_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=[0, 0, 0])
