@@ -5,6 +5,8 @@ import numpy as np
 import copy
 import time
 import math
+from fast_global_registration import preprocess_point_cloud, execute_fast_global_registration
+
 
 if o3d.__DEVICE_API__ == 'cuda':
 	import open3d.cuda.pybind.t.pipelines.registration as treg
@@ -190,47 +192,13 @@ def run_vanilla_icp(lidar_path  , svo_path):
 
 	draw_registration_result(source, target, registration_icp.transformation)
 
-def preprocess_point_cloud(pcd, voxel_size):
-	print(":: Downsample with a voxel size %.3f." % voxel_size)
-	pcd_down = pcd.voxel_down_sample(voxel_size)
 
-	radius_normal = voxel_size * 2
-	print(":: Estimate normal with search radius %.3f." % radius_normal)
-	pcd_down.estimate_normals(
-		o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
-
-	radius_feature = voxel_size * 5
-	print(":: Compute FPFH feature with search radius %.3f." % radius_feature)
-	pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
-		pcd_down,
-		o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
-	return pcd_down, pcd_fpfh
-
-def execute_fast_global_registration(source_down, target_down, source_fpfh,
-									 target_fpfh, voxel_size):
-	distance_threshold = voxel_size * 0.5
-	print(":: Apply fast global registration with distance threshold %.3f" \
-			% distance_threshold)
-	result = o3d.pipelines.registration.registration_fgr_based_on_feature_matching(
-		source_down, target_down, source_fpfh, target_fpfh,
-		o3d.pipelines.registration.FastGlobalRegistrationOption(
-			maximum_correspondence_distance=distance_threshold))
-	return result
 
 if __name__ == "__main__":
 	
-	lidar_path = "lidar2ply/lidar_0.ply"
-	svo_path = "svo2ply/svo_0.ply"
+	lidar_path = "../lidar2ply/lidar_0.ply"
+	svo_path = "../svo2ply/svo_0.ply"
 	
-	# lidar_pcd = o3d.io.read_point_cloud(lidar_ply, remove_nan_points=True, remove_infinite_points=True)
-	# svo_pcd = o3d.io.read_point_cloud(svo_ply, remove_nan_points=True, remove_infinite_points=True) 
-	
-	# lidar_pcd = o3d.io.read_point_cloud(lidar_ply)
-	# svo_pcd = o3d.io.read_point_cloud(svo_ply) 
-
-	# source = copy.copy(lidar_pcd)
-	# target = copy.copy(svo_pcd)
-
 	print(f"{o3d.__DEVICE_API__}")
 
 	# run_vanilla_icp(lidar_ply, svo_ply)
