@@ -190,7 +190,6 @@ def run_vanilla_icp(lidar_path  , svo_path):
 
 	draw_registration_result(source, target, registration_icp.transformation)
 
-
 def preprocess_point_cloud(pcd, voxel_size):
 	print(":: Downsample with a voxel size %.3f." % voxel_size)
 	pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -206,21 +205,6 @@ def preprocess_point_cloud(pcd, voxel_size):
 		pcd_down,
 		o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
 	return pcd_down, pcd_fpfh
-
-def prepare_dataset(voxel_size, source_file, target_file):
-	print(":: Load two point clouds and disturb initial pose.")
-
-	demo_icp_pcds = o3d.data.DemoICPPointClouds()
-	source = o3d.io.read_point_cloud(source_file)
-	target = o3d.io.read_point_cloud(target_file)
-	# trans_init = np.asarray([[0.0, 0.0, 1.0, 0.0], [1.0, 0.0, 0.0, 0.0],
-	#                          [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]])
-	# source.transform(trans_init)
-	# draw_registration_result(source, target, np.identity(4))
-
-	source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
-	target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
-	return source, target, source_down, target_down, source_fpfh, target_fpfh
 
 def execute_fast_global_registration(source_down, target_down, source_fpfh,
 									 target_fpfh, voxel_size):
