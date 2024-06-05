@@ -5,7 +5,7 @@ import numpy as np
 import copy
 import time
 import math
-from fast_global_registration import preprocess_point_cloud, execute_fast_global_registration
+import fast_global_registration 
 
 
 if o3d.__DEVICE_API__ == 'cuda':
@@ -14,78 +14,16 @@ else:
 	import open3d.cpu.pybind.t.pipelines.registration as treg
 
 # TO-DO: 
-# - multilevel icp , robust icp
+# - multilevel icp , 
+# robust icp
 # - Try point to plane registration method
 # - remove outliers
+# - try point to plane
+# Multi-Scale ICP on CUDA device Example
 
-def rotation_matrix_y(theta):
-	"""
-	Returns the 4x4 transformation matrix for rotating around the y-axis
-	by the given angle (in degrees).
-	"""
-	theta = math.radians(theta)  # Convert to radians
-	
-	cos_theta = np.cos(theta)
-	sin_theta = np.sin(theta)
-	
-	rotation_matrix = np.array([
-		[cos_theta, 0, -sin_theta, 0],
-		[0, 1, 0, 0],
-		[sin_theta, 0, cos_theta, 0],
-		[0, 0, 0, 1]
-	])
-	
-	return rotation_matrix
 
-def rotation_matrix_x(theta):
-	"""
-	Returns the 4x4 transformation matrix for rotating around the x-axis
-	by the given angle (in degrees).
-	"""
-	theta = math.radians(theta)  # Convert to radians
-	
-	cos_theta = np.cos(theta)
-	sin_theta = np.sin(theta)
-	
-	rotation_matrix = np.array([
-		[1, 0, 0, 0],
-		[0, cos_theta, sin_theta, 0],
-		[0, -sin_theta, cos_theta, 0],
-		[0, 0, 0, 1]
-	])
-	
-	return rotation_matrix
 
-def rotation_matrix_z(theta):
-	"""
-	Returns the 4x4 transformation matrix for rotating around the z-axis
-	by the given angle (in degrees).
-	"""
-	theta = math.radians(theta)  # Convert to radians
-	
-	cos_theta = np.cos(theta)
-	sin_theta = np.sin(theta)
-	
-	rotation_matrix = np.array([
-		[cos_theta, sin_theta, 0, 0],
-		[-sin_theta, cos_theta, 0, 0],
-		[0, 0, 1, 0],
-		[0, 0, 0, 1]
-	])
-	
-	return rotation_matrix
 
-def draw_registration_result_old(source, target, transformation):
-	source_temp = copy.deepcopy(source)
-	target_temp = copy.deepcopy(target)
-	source_temp.paint_uniform_color([1, 0.706, 0])
-	target_temp.paint_uniform_color([0, 0.651, 0.929])
-	source_temp.transform(transformation)
-	o3d.visualization.draw_geometries([source_temp, target_temp],
-									  zoom=0.4559,
-									  front=[0.6452, -0.3036, -0.7011],
-									  lookat=[1.9892, 2.0208, 1.8945],
-									  up=[-0.2779, -0.9482, 0.1556])
 
 def draw_registration_result(source, target, transformation):
 
@@ -97,7 +35,7 @@ def draw_registration_result(source, target, transformation):
 	source_a.paint_uniform_color([1.0, 0.0, 0.0])  # Red color
 	source_a.transform(transformation) 
 
-	source_b.paint_uniform_color([0.0, 0.0,1.0])  # Blue color
+	# source_b.paint_uniform_color([0.0, 0.0,1.0])  # Blue color
 	
 	# source_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=200, origin=[0, 0, 0])
 	# target_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=[0, 0, 0])
@@ -121,16 +59,52 @@ def draw_registration_result(source, target, transformation):
 	# This is patched version for tutorial rendering.
 	# Use `draw` function for you application.
 	o3d.visualization.draw_geometries(
-		[source_a.to_legacy(),
+		[
+		source_a.to_legacy(),
 		#  source_b.to_legacy(),
-		 target_temp.to_legacy(),
-		 frame1,
-		 frame2],
+		 target_temp.to_legacy()
+		#  frame1,
+		#  frame2
+		],
 		zoom=0.4459,
 		front=[0.9288, -0.2951, -0.2242],
 		lookat=[1.6784, 2.0612, 1.4451],
 		up=[-0.3402, -0.9189, -0.1996])
 
+def pick_point_callback(vis, event):
+    # Get the picked point and its coordinates
+    point = vis.get_picked_point(event)
+    if point is not None:
+        print(f"Picked point: {point}")
+
+# def draw_registration_result(source, target, transformation):
+# 	source_temp = source.clone()
+# 	target_temp = target.clone()
+
+# 	source_temp.transform(transformation)
+
+# 	vis = o3d.visualization.VisualizerWithEditing()
+# 	vis.create_window()
+	
+# 	vis.add_geometry(source_temp.to_legacy())
+# 	vis.add_geometry(target_temp.to_legacy())
+
+# 	vis.get_render_option().point_size = 2.0  # Adjust the point size
+# 	vis.get_view_control().set_front([0.9288, -0.2951, -0.2242])
+# 	vis.get_view_control().set_lookat([1.6784, 2.0612, 1.4451])
+# 	vis.get_view_control().set_up([-0.3402, -0.9189, -0.1996])
+# 	vis.get_view_control().set_zoom(0.4459)
+	
+# 	# vis.register_animation_callback(pick_point_callback)
+# 	vis.run()
+
+# 	# o3d.visualization.draw_geometries(
+# 	# 	[source_temp.to_legacy(),
+# 	# 	 target_temp.to_legacy()],
+# 	# 	zoom=0.4459,
+# 	# 	front=[0.9288, -0.2951, -0.2242],
+# 	# 	lookat=[1.6784, 2.0612, 1.4451],
+# 	# 	up=[-0.3402, -0.9189, -0.1996])
 
 def get_pcl_aabb(pcd):
 	aabb = pcd.get_axis_aligned_bounding_box()
@@ -142,56 +116,6 @@ def get_pcl_aabb(pcd):
 	# print(f"Horizontal span: {horizontal_span}")
 	# print(f"Vertical span: {vertical_span}")
 	return [horizontal_span, vertical_span]
-
-def run_vanilla_icp(lidar_path  , svo_path):
-	
-	source = o3d.t.io.read_point_cloud(lidar_path)
-	target = o3d.t.io.read_point_cloud(svo_path)
-	
-	# Example callback_after_iteration lambda function:
-	callback_after_iteration = lambda updated_result_dict : print("Iteration Index: {}, Fitness: {}, Inlier RMSE: {},".format(
-	updated_result_dict["iteration_index"].item(),
-	updated_result_dict["fitness"].item(), 
-	updated_result_dict["inlier_rmse"].item()))
-
-
-	# Search distance for Nearest Neighbour Search [Hybrid-Search is used].
-	max_correspondence_distance = 7
-
-	# Initial alignment or source to target transform.
-	init_source_to_target = np.asarray([[0.862, 0.011, -0.507, 0.5],
-										[-0.139, 0.967, -0.215, 0.7],
-										[0.487, 0.255, 0.835, -1.4],
-										[0.0, 0.0, 0.0, 1.0]])
-
-	# Select the `Estimation Method`, and `Robust Kernel` (for outlier-rejection).
-	# estimation = treg.TransformationEstimationPointToPlane()
-	estimation = treg.TransformationEstimationPointToPoint()
-
-	# Convergence-Criteria for Vanilla ICP
-	criteria = treg.ICPConvergenceCriteria(relative_fitness=0.000001,
-										relative_rmse=0.000001,
-										max_iteration=50)
-	# Down-sampling voxel-size.
-	voxel_size = 0.025
-
-	# Save iteration wise `fitness`, `inlier_rmse`, etc. to analyse and tune result.
-	save_loss_log = True
-	
-	s = time.time()
-
-	
-	registration_icp = treg.icp(source, target, max_correspondence_distance,
-								init_source_to_target, estimation, criteria,
-								voxel_size, callback_after_iteration)
-
-	icp_time = time.time() - s
-	print("Time taken by ICP: ", icp_time)
-	print("Inlier Fitness: ", registration_icp.fitness)
-	print("Inlier RMSE: ", registration_icp.inlier_rmse)
-
-	draw_registration_result(source, target, registration_icp.transformation)
-
 
 
 if __name__ == "__main__":
@@ -206,25 +130,81 @@ if __name__ == "__main__":
 	print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
 
 	
+	# transform = np.eye(4)
+	init_transform = None
+
 	# ===== FAST GLOBAL REGISTRATION ====	
-	voxel_size = 0.05  # means 5cm for the dataset
-	source_down, source_fpfh = preprocess_point_cloud(o3d.io.read_point_cloud(lidar_path), voxel_size)
-	target_down, target_fpfh = preprocess_point_cloud(o3d.io.read_point_cloud(svo_path), voxel_size)
+	# init_transform = fast_global_registration.main(lidar_path, svo_path)
+	
+	# ===== VANILLA ICP =========
+	
+	# ==== MULTISCALE ICP =========
 
-	print(f"type(source_down): {type(source_down)}")	
+	
+	s = time.time()
 
-	start = time.time()
-	result_fast = execute_fast_global_registration(source_down, target_down,
-												source_fpfh, target_fpfh,
-												voxel_size)
-	print("Fast global registration took %.3f sec.\n" % (time.time() - start))
-	print(result_fast)
-	# draw_registration_result(source_down, target_down, result_fast.transformation)
-	draw_registration_result_old(source_down, target_down, result_fast.transformation)
+	source = o3d.t.io.read_point_cloud(lidar_path)	
+	target = o3d.t.io.read_point_cloud(svo_path)
 
-	print(f"type(result_fast.transformation): {type(result_fast.transformation)}")
-	print(f"result_fast.transformation: \n{result_fast.transformation}")	
+	# computing normals
+	# source.estimate_normals(max_nn=30, radius=0.1)
+	
+	target.estimate_normals(max_nn=30, radius=0.1)
+	
+	print(f"Normals computed for target point cloud!")
+
+	source_cuda = source.cuda(0)
+	target_cuda = target.cuda(0)
+
+	voxel_sizes = o3d.utility.DoubleVector([0.01, 0.009, 0.0089])
+
+	# List of Convergence-Criteria for Multi-Scale ICP:
+	criteria_list = [
+		treg.ICPConvergenceCriteria(relative_fitness=0.001,
+									relative_rmse=0.0001,
+									max_iteration=100),
+		treg.ICPConvergenceCriteria(0.001, 0.001, 5),
+		treg.ICPConvergenceCriteria(0.001, 0.001, 5)
+	]
+
+	# `max_correspondence_distances` for Multi-Scale ICP (o3d.utility.DoubleVector):
+	max_correspondence_distances = o3d.utility.DoubleVector([400, 1, 1])
+
+	# Initial alignment or source to target transform.
+	init_source_to_target = o3d.core.Tensor.eye(4, o3d.core.Dtype.Float32)
+
+	# Select the `Estimation Method`, and `Robust Kernel` (for outlier-rejection).
+	# estimation = treg.TransformationEstimationPointToPlane()
+	# estimation = treg.TransformationEstimationPointToPoint()
+	mu, sigma = 0, 0.1
+	estimation = treg.TransformationEstimationPointToPlane(
+    treg.robust_kernel.RobustKernel(
+        treg.robust_kernel.RobustKernelMethod.TukeyLoss, sigma))
+
+	# Save iteration wise `fitness`, `inlier_rmse`, etc. to analyse and tune result.
+	callback_after_iteration = lambda loss_log_map : print("Iteration Index: {}, Scale Index: {}, Scale Iteration Index: {}, Fitness: {}, Inlier RMSE: {},".format(
+		loss_log_map["iteration_index"].item(),
+		loss_log_map["scale_index"].item(),
+		loss_log_map["scale_iteration_index"].item(),
+		loss_log_map["fitness"].item(),
+		loss_log_map["inlier_rmse"].item()))
+
+	# registration_ms_icp = treg.multi_scale_icp(source, target, voxel_sizes,
+	# 										criteria_list,
+	# 										max_correspondence_distances,
+	# 										init_source_to_target, estimation,
+	# 										callback_after_iteration)
 
 
-	# # VANILLA ICP
-	# run_vanilla_icp(lidar_path, svo_path)
+	registration_ms_icp = treg.multi_scale_icp(source_cuda, target_cuda,
+                                           voxel_sizes, criteria_list,
+                                           max_correspondence_distances,
+                                           init_source_to_target, estimation,
+										   callback_after_iteration)
+
+	ms_icp_time = time.time() - s
+	print("Time taken by Multi-Scale ICP: ", ms_icp_time)
+	print("Inlier Fitness: ", registration_ms_icp.fitness)
+	print("Inlier RMSE: ", registration_ms_icp.inlier_rmse)
+
+	draw_registration_result(source, target, registration_ms_icp.transformation) 	
