@@ -4,6 +4,7 @@ import open3d as o3d
 import numpy as np
 import copy
 import time
+import math
 
 if o3d.__DEVICE_API__ == 'cuda':
 	import open3d.cuda.pybind.t.pipelines.registration as treg
@@ -15,36 +16,100 @@ else:
 # - Try point to plane registration method
 # - remove outliers
 
+def rotation_matrix_y(theta):
+    """
+    Returns the 4x4 transformation matrix for rotating around the y-axis
+    by the given angle (in degrees).
+    """
+    theta = math.radians(theta)  # Convert to radians
+    
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    
+    rotation_matrix = np.array([
+        [cos_theta, 0, -sin_theta, 0],
+        [0, 1, 0, 0],
+        [sin_theta, 0, cos_theta, 0],
+        [0, 0, 0, 1]
+    ])
+    
+    return rotation_matrix
+
+def rotation_matrix_x(theta):
+    """
+    Returns the 4x4 transformation matrix for rotating around the x-axis
+    by the given angle (in degrees).
+    """
+    theta = math.radians(theta)  # Convert to radians
+    
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    
+    rotation_matrix = np.array([
+        [1, 0, 0, 0],
+        [0, cos_theta, sin_theta, 0],
+        [0, -sin_theta, cos_theta, 0],
+        [0, 0, 0, 1]
+    ])
+    
+    return rotation_matrix
+
+def rotation_matrix_z(theta):
+	"""
+	Returns the 4x4 transformation matrix for rotating around the z-axis
+	by the given angle (in degrees).
+	"""
+	theta = math.radians(theta)  # Convert to radians
+	
+	cos_theta = np.cos(theta)
+	sin_theta = np.sin(theta)
+	
+	rotation_matrix = np.array([
+		[cos_theta, sin_theta, 0, 0],
+		[-sin_theta, cos_theta, 0, 0],
+		[0, 0, 1, 0],
+		[0, 0, 0, 1]
+	])
+	
+	return rotation_matrix
+
+
 def draw_registration_result(source, target, transformation):
-	source_temp = source.clone()
+	source_a = source.clone()
+	source_b = source.clone()
+
 	target_temp = target.clone()
 
-	source_temp.transform(transformation)
+	source_a.paint_uniform_color([255, 0, 0])  # Red color
+	source_a.transform(transformation)
+
+	source_b.paint_uniform_color([0, 0, 255])  # Blue color
 	
 	# source_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=200, origin=[0, 0, 0])
 	# target_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=[0, 0, 0])
 
 	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[0, 0, 0])
-	frame2 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[0, 0, 0])
+	frame2 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[60, 0, 0])
     
-	tf1 = np.asarray([[1.0, 0.0 , 0,  0],
-					[0 , 1.0, 0, 0],
-					[0 , 0, 1.0, 0],
-					[0.0, 0.0, 0.0, 1.0]])
+	# tf1 = np.asarray([[1.0, 0.0 , 0,  0],
+	# 				[0 , 1.0, 0, 0],
+	# 				[0 , 0, 1.0, 0],
+	# 				[0.0, 0.0, 0.0, 1.0]])
 
-	tf2 = np.asarray([[1.0, 0.0 , 0,  0],
-					[0 , 1.0, 0, 60],
-					[0 , 0, 1.0, 0],
-					[0.0, 0.0, 0.0, 1.0]])
+	# tf2 = np.asarray([[1.0, 0.0 , 0,  0],
+	# 				[0 , 1.0, 0, 60],
+	# 				[0 , 0, 1.0, 0],
+	# 				[0.0, 0.0, 0.0, 1.0]])
 
-	frame1.transform(tf1)
-	frame2.transform(tf2)	
+	# frame1.transform(tf1)
+	# frame2.transform(tf2)	
 
 	# This is patched version for tutorial rendering.
 	# Use `draw` function for you application.
 	o3d.visualization.draw_geometries(
-		[source_temp.to_legacy(),
-		 source.to_legacy(),
+		[source_a.to_legacy(),
+		 source_b.to_legacy(),
+		 # target_temp.to_legacy(),
 		 frame1,
 		 frame2],
 		zoom=0.4459,
@@ -135,17 +200,20 @@ if __name__ == "__main__":
 	print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
 
 	# transformation = np.array()
-	init_transformation = np.eye(4)
-	print(f"Initial Transformation: {init_transformation}")
+	final_transformation = np.eye(4)
+	print(f"Initial Transformation: {final_transformation}")
 
 	
-	# rotate 90 dgree around Y-axis
-	rot_1 = np.array([[0, 0, -1, 0],
-					  [0, 1, 0, 0],
-					  [-1, 0, 0, 0],
-					  [0, 0, 0, 1]])
+	# rotate 90 dgree around x-axis
+	# rot_1 = np.array([[1, 0, 0, 0],
+	# 				  [0, 0, -1, 0],
+	# 				  [0, 1, 0, 0],
+	# 				  [0, 0, 0, 1]])
 
-	final_transformation = init_transformation @ rot_1
+	final_transformation = final_transformation @ rotation_matrix_x(90)
+	# final_transformation = final_transformation @ rotation_matrix_y(90)
+	# final_transformation = final_transformation @ rotation_matrix_z(90)
+	np.set_printoptions(precision=3, suppress=True)
 
 	print(f"Final Transformation: {final_transformation}")
 
