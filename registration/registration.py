@@ -16,6 +16,8 @@ else:
 # TO-DO: 
 # try plane fitting to tractor hood pcd
 # play with tractor hood pcd + one crop row on each side
+
+
 # robust icp -> outlier elimination
 # downsample target pcl
 # trying pre-processing for zed pointcloud
@@ -68,8 +70,8 @@ def draw_registration_result(source, target, transformation):
 		],
 		zoom=0.4459,
 		front=[0.9288, -0.2951, -0.2242],
-		# lookat=[1.6784, 2.0612, 1.4451],
-		lookat=[0, 0, 0],
+		lookat=[1.6784, 2.0612, 1.4451],
+		# lookat=[0, 0, 0],
 		up=[-0.3402, -0.9189, -0.1996])
 
 def prepare_pcd(pcd, min_bound, max_bound):
@@ -139,16 +141,52 @@ def run_multiview_icp(source, target):
 
 	draw_registration_result(source, target, registration_ms_icp.transformation) 	
 
+
+def align_planes(source, target):
+	# source = o3d.io.read_point_cloud("source.ply")
+	# target = o3d.io.read_point_cloud("target.ply")
+
+	# Segment the planes in the source and target point clouds
+	source_plane, inliers_source = source.segment_plane(distance_threshold=0.01, ransac_n=3, num_iterations=1000)
+	target_plane, inliers_target = target.segment_plane(distance_threshold=0.01, ransac_n=3, num_iterations=1000)
+
+	# Compute the centroids of the source and target planes
+	centroid_source = np.mean(source_plane.points, axis=0)
+	centroid_target = np.mean(target_plane.points, axis=0)
+
+	# Compute the rotation and translation that align the source plane with the target plane
+	rotation, translation = o3d.geometry.get_rotation_and_translation(centroid_source, centroid_target, source_plane.points, target_plane.points)
+
+	# Apply the transformation to the source point cloud
+	transformed_source = o3d.geometry.transform_geometry(source_plane, o3d.geometry.Transformation(rotation, translation))
+
+	# Visualize the transformed source point cloud and the target point cloud
+	o3d.visualization.draw_geometries([transformed_source, target_plane], window_name="Transformed Source and Target Point Clouds")
+
+
+def run_plane_fitting(source, distance_threshold=0.1, ransac_n=300, num_iterations=1000):
+	
+	print(f"Number of points in the pcd: {np.asarray(source.to_legacy().points).shape[0]}")
+	
+	pcd_plane, inliers = source.segment_plane(distance_threshold=0.1, ransac_n=300, num_iterations=1000)
+	pcd_filtered = source.select_by_index(inliers)	
+
+	# print(f"type(pcd_filtere)")
+
+	source.paint_uniform_color([0.5, 1.0, 0.5])
+	pcd_filtered.paint_uniform_color([1.0, 1.0, 0.0])
+
+	# Visualize the original point cloud and the filtered point cloud
+	o3d.visualization.draw_geometries([source.to_legacy(), pcd_filtered.to_legacy()], window_name="Point Cloud Filtering")
+
+	return pcd_plane, inliers
+
 if __name__ == "__main__":
 	
 	lidar_path = "../lidar2ply/lidar_0.ply"
 	svo_path = "../svo2ply/svo_0.ply"
 	
 	print(f"{o3d.__DEVICE_API__}")
-
-	# run_vanilla_icp(lidar_ply, svo_ply)
-	# print(f"lidar_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(lidar_path))}")
-	# print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
 
 	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])	
 
@@ -157,8 +195,11 @@ if __name__ == "__main__":
 	source = o3d.t.io.read_point_cloud(lidar_path)	
 	target = o3d.t.io.read_point_cloud(svo_path)	
 
-	# source = prepare_pcd(source, [-5.0, -0.3, -1.0], [2.0 , 0.325, -0.75])
-	# target = prepare_pcd(target, [-0.3, -10, -50.0], [0.4, 0.5, 2.0])
+	# tractor hood only
+	source = prepare_pcd(source, [0.0, -0.5, -1.0], [1.2 , 0.6, 1])
+	target = prepare_pcd(target, [-0.6, 0.0, 0.0], [0.6, 1.0, 2.0])
+	
+	# hood + vine row
 	# target = prepare_pcd(target, [-0.3, 0.3, -50.0], [0.4, 0.4, 2.0])
 	
 	
@@ -166,11 +207,22 @@ if __name__ == "__main__":
 	# target.paint_uniform_color([0.0, 1.0, 0.0])	
 
 	
+	# o3d.visualization.draw_geometries([target.to_legacy(), frame1],
+	# 	zoom=0.4459,
+	# 	front=[0.9288, -0.2951, -0.2242],
+	# 	lookat=[1.6784, 2.0612, 1.4451],
+	# 	up=[-0.3402, -0.9189, -0.1996])
 	
-	o3d.visualization.draw_geometries([ target.to_legacy(), frame1])	
+	# o3d.visualization.draw_geometries([ target.to_legacy(), frame1])	
 	# o3d.visualization.draw_geometries([ source.to_legacy(), frame1])	
 	# o3d.visualization.draw_geometries([ source.to_legacy(), target.to_legacy(), frame1])	
 
 	# run_multiview_icp(source, target)
 
+	# run_plane_fitting(source)
+	# run_plane_fitting(target)
+
+	
+
+	# Apply plane fitting
 	
