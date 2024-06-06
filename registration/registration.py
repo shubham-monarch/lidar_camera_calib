@@ -15,20 +15,25 @@ else:
 
 # TO-DO: 
 # robust icp -> outlier elimination
+# downsample target pcl
+# try croppping
+# try arun's method
+# try manual initial alignment / global registration methods
 
 
-
+def crop_pcd(pcd, min_bound, max_bound):
+	return pcd.crop(min_bound, max_bound)
 
 
 def draw_registration_result(source, target, transformation):
 
-	source_a = source.clone()
-	source_b = source.clone()
-
+	source_temp = source.clone()
 	target_temp = target.clone()
 
-	source_a.paint_uniform_color([1.0, 0.0, 0.0])  # Red color
-	source_a.transform(transformation) 
+	source_temp.paint_uniform_color([0.0, 0.0, 0.0])  # Red color
+	source_temp.transform(transformation) 
+
+	# target_temp.paint_uniform_color([0.0, 1.0, 0.0])  # Green color
 
 	# source_b.paint_uniform_color([0.0, 0.0,1.0])  # Blue color
 	
@@ -36,7 +41,7 @@ def draw_registration_result(source, target, transformation):
 	# target_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=50, origin=[0, 0, 0])
 
 	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[0, 0, 0])
-	frame2 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[60, 0, 0])
+	# frame2 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=20, origin=[60, 0, 0])
 	
 	# tf1 = np.asarray([[1.0, 0.0 , 0,  0],
 	# 				[0 , 1.0, 0, 0],
@@ -55,34 +60,16 @@ def draw_registration_result(source, target, transformation):
 	# Use `draw` function for you application.
 	o3d.visualization.draw_geometries(
 		[
-		source_a.to_legacy(),
+		source_temp.to_legacy(),
 		#  source_b.to_legacy(),
-		 target_temp.to_legacy()
-		#  frame1,
+		target_temp.to_legacy(),
+		 frame1
 		#  frame2
 		],
 		zoom=0.4459,
 		front=[0.9288, -0.2951, -0.2242],
 		lookat=[1.6784, 2.0612, 1.4451],
 		up=[-0.3402, -0.9189, -0.1996])
-
-def pick_point_callback(vis, event):
-    # Get the picked point and its coordinates
-    point = vis.get_picked_point(event)
-    if point is not None:
-        print(f"Picked point: {point}")
-
-
-def get_pcl_aabb(pcd):
-	aabb = pcd.get_axis_aligned_bounding_box()
-
-	# Calculate spans
-	horizontal_span = aabb.get_extent()[0]  # span along the x-axis
-	vertical_span = aabb.get_extent()[2]    # span along the z-axis (assuming z is vertical)
-
-	# print(f"Horizontal span: {horizontal_span}")
-	# print(f"Vertical span: {vertical_span}")
-	return [horizontal_span, vertical_span]
 
 
 if __name__ == "__main__":
@@ -93,19 +80,69 @@ if __name__ == "__main__":
 	print(f"{o3d.__DEVICE_API__}")
 
 	# run_vanilla_icp(lidar_ply, svo_ply)
-	print(f"lidar_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(lidar_path))}")
-	print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
+	# print(f"lidar_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(lidar_path))}")
+	# print(f"svo_pcl_span: {get_pcl_aabb(o3d.io.read_point_cloud(svo_path))}")	
 
-		
+	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=2, origin=[0, 0, 0])	
+
 	s = time.time()
 
-	source = o3d.t.io.read_point_cloud(lidar_path)	
-	target = o3d.t.io.read_point_cloud(svo_path)
+	# source = o3d.t.io.read_point_cloud(lidar_path)	
+	target = o3d.t.io.read_point_cloud(svo_path)	
+	# source = source.voxel_down_sample(voxel_size=0.0001)
+
+	# source_num_points = np.asarray(source.to_legacy().points).shape[0]
+	target_num_points = np.asarray(target.to_legacy().points).shape[0]
+	# print(f"[BEFORE CROPPING] Number of points in source: {source_num_points}")
+	print(f"[BEFORE CROPPING] Number of points in target: {target_num_points}")
+		
+	# source_min_bound = [-10.0, -2.0, -50.0]
+	# source_max_bound = [10.0, 2.0, 50.0]
+	# source_bbox = o3d.t.geometry.AxisAlignedBoundingBox(source_min_bound, source_max_bound)
+
+	target_min_bound = [-0.7, -10, -50.0]
+	target_max_bound = [0.8, 0.5, 2.0]
+	target_bbox = o3d.t.geometry.AxisAlignedBoundingBox(target_min_bound, target_max_bound)
+
+	# source = source.crop(bbox) 
+	target = target.crop(target_bbox) 
 	
+
+	# source_num_points = np.asarray(source.to_legacy().points).shape[0]
+	target_num_points = np.asarray(target.to_legacy().points).shape[0]
+	# print(f"[AFTER CROPPING] Number of points in source: {source_num_points}")
+	print(f"[AFTER CROPPING] Number of points in source: {target_num_points}")
+
+	# o3d.visualization.draw_geometries([source.to_legacy(), frame1])	
+	o3d.visualization.draw_geometries([target.to_legacy(), frame1])	
+	
+	
+	
+	exit(0)
+
+
+
+
+
 	source_cuda = source.cuda(0)
 	target_cuda = target.cuda(0)
 
+	
+
+
+	
+	
+	# Downsampling the svo pcl
+	voxel_size = 0.1  # Adjust the voxel size as needed
+	downsampled_target_cuda = target_cuda.voxel_down_sample(voxel_size)
+	o3d.visualization.draw_geometries([downsampled_target_cuda.to_legacy()])
+
+
+
+
+	exit(0)
 	target_cuda.estimate_normals(max_nn=30, radius=0.1)
+	downsampled_target_cuda.estimate_normals(max_nn=30, radius=0.1)
 
 	voxel_sizes = o3d.utility.DoubleVector([0.01, 0.0009, 0.00089])
 
@@ -136,13 +173,6 @@ if __name__ == "__main__":
 		loss_log_map["scale_iteration_index"].item(),
 		loss_log_map["fitness"].item(),
 		loss_log_map["inlier_rmse"].item()))
-
-	# registration_ms_icp = treg.multi_scale_icp(source, target, voxel_sizes,
-	# 										criteria_list,
-	# 										max_correspondence_distances,
-	# 										init_source_to_target, estimation,
-	# 										callback_after_iteration)
-
 
 	registration_ms_icp = treg.multi_scale_icp(source_cuda, target_cuda,
                                            voxel_sizes, criteria_list,
