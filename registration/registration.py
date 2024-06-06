@@ -20,11 +20,6 @@ else:
 # try arun's method
 # try manual initial alignment / global registration methods
 
-
-def crop_pcd(pcd, min_bound, max_bound):
-	return pcd.crop(min_bound, max_bound)
-
-
 def draw_registration_result(source, target, transformation):
 
 	source_temp = source.clone()
@@ -71,6 +66,18 @@ def draw_registration_result(source, target, transformation):
 		lookat=[1.6784, 2.0612, 1.4451],
 		up=[-0.3402, -0.9189, -0.1996])
 
+def prepare_pcd(pcd, min_bound, max_bound):
+	pcd_temp = pcd.clone()
+
+	print(f"[BEFORE CROPPING] Number of points in pcd: {np.asarray(pcd_temp.to_legacy().points).shape[0]}")
+	
+	bbox = o3d.t.geometry.AxisAlignedBoundingBox(min_bound, max_bound)
+	pcd_temp = pcd_temp.crop(bbox) 
+	
+	print(f"[AFTER CROPPING] Number of points in pcd: {np.asarray(pcd_temp.to_legacy().points).shape[0]}")
+	
+	return pcd_temp		
+
 
 if __name__ == "__main__":
 	
@@ -88,33 +95,34 @@ if __name__ == "__main__":
 	s = time.time()
 
 	source = o3d.t.io.read_point_cloud(lidar_path)	
-	# target = o3d.t.io.read_point_cloud(svo_path)	
-	# source = source.voxel_down_sample(voxel_size=0.0001)
+	target = o3d.t.io.read_point_cloud(svo_path)	
 
-	source_num_points = np.asarray(source.to_legacy().points).shape[0]
-	# target_num_points = np.asarray(target.to_legacy().points).shape[0]
-	print(f"[BEFORE CROPPING] Number of points in source: {source_num_points}")
-	# print(f"[BEFORE CROPPING] Number of points in target: {target_num_points}")
+	source = prepare_pcd(source, [-5.0, -0.6, -50.0], [2.0 , 0.6, 10.0])
+	target = prepare_pcd(target, [-0.7, -10, -50.0], [0.8, 0.5, 2.0])
+
+	# source_num_points = np.asarray(source.to_legacy().points).shape[0]
+	# # target_num_points = np.asarray(target.to_legacy().points).shape[0]
+	# print(f"[BEFORE CROPPING] Number of points in source: {source_num_points}")
+	# # print(f"[BEFORE CROPPING] Number of points in target: {target_num_points}")
 		
-	source_min_bound = [-5.0, -0.6, -50.0]
-	source_max_bound = [2.0 , 0.6, 10.0]
-	source_bbox = o3d.t.geometry.AxisAlignedBoundingBox(source_min_bound, source_max_bound)
+	# source_min_bound = [-5.0, -0.6, -50.0]
+	# source_max_bound = [2.0 , 0.6, 10.0]
+	# source_bbox = o3d.t.geometry.AxisAlignedBoundingBox(source_min_bound, source_max_bound)
 
-	# target_min_bound = [-0.7, -10, -50.0]
-	# target_max_bound = [0.8, 0.5, 2.0]
-	# target_bbox = o3d.t.geometry.AxisAlignedBoundingBox(target_min_bound, target_max_bound)
+	# # target_min_bound = [-0.7, -10, -50.0]
+	# # target_max_bound = [0.8, 0.5, 2.0]
+	# # target_bbox = o3d.t.geometry.AxisAlignedBoundingBox(target_min_bound, target_max_bound)
 
-	source = source.crop(source_bbox) 
-	# target = target.crop(target_bbox) 
+	# source = source.crop(source_bbox) 
+	# # target = target.crop(target_bbox) 
 	
 
-	source_num_points = np.asarray(source.to_legacy().points).shape[0]
-	# target_num_points = np.asarray(target.to_legacy().points).shape[0]
-	print(f"[AFTER CROPPING] Number of points in source: {source_num_points}")
-	# print(f"[AFTER CROPPING] Number of points in source: {target_num_points}")
+	# source_num_points = np.asarray(source.to_legacy().points).shape[0]
+	# # target_num_points = np.asarray(target.to_legacy().points).shape[0]
+	# print(f"[AFTER CROPPING] Number of points in source: {source_num_points}")
+	# # print(f"[AFTER CROPPING] Number of points in source: {target_num_points}")
 
-	o3d.visualization.draw_geometries([source.to_legacy(), frame1])	
-	# o3d.visualization.draw_geometries([target.to_legacy(), frame1])	
+	o3d.visualization.draw_geometries([source.to_legacy(),target.to_legacy(), frame1])	
 	
 	
 	
