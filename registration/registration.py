@@ -35,7 +35,7 @@ def draw_registration_result(source, target, transformation):
 	source_temp.paint_uniform_color([1.0, 0.0, 0.0])  # Red color
 	source_temp.transform(transformation) 
 
-	target_temp.paint_uniform_color([0.0, 1.0, 0.0])  # Green color
+	target_temp.paint_uniform_color([0.5, 1.0, 0.5])  # Green color
 
 	# source_b.paint_uniform_color([0.0, 0.0,1.0])  # Blue color
 	
@@ -97,28 +97,31 @@ def run_multiview_icp(source, target):
 	
 	target_cuda.estimate_normals(max_nn=30, radius=0.1)
 	
-	voxel_sizes = o3d.utility.DoubleVector([0.001, 0.0001, 0.00001])
+	# voxel_sizes = o3d.utility.DoubleVector([1, 0.09, 0.089])
+	voxel_sizes = o3d.utility.DoubleVector([0.1, 0.05, 0.025])
 
 	criteria_list = [
-		treg.ICPConvergenceCriteria(relative_fitness=0.001,
-									relative_rmse=0.001,
-									max_iteration=500),
-		treg.ICPConvergenceCriteria(0.0001, 0.0001, 100),
-		treg.ICPConvergenceCriteria(0.001, 0.0001, 5)
-	]
+    treg.ICPConvergenceCriteria(relative_fitness=0.0001,
+                                relative_rmse=0.0001,
+                                max_iteration=20),
+    treg.ICPConvergenceCriteria(0.00001, 0.00001, 15),
+    treg.ICPConvergenceCriteria(0.000001, 0.000001, 10)
+]
 
 	# `max_correspondence_distances` for Multi-Scale ICP (o3d.utility.DoubleVector):
-	max_correspondence_distances = o3d.utility.DoubleVector([100, 1, 0.1 ])
+	max_correspondence_distances = o3d.utility.DoubleVector([20, 20, 20])
 
 	init_source_to_target = o3d.core.Tensor.eye(4, o3d.core.Dtype.Float32)
 
 	# estimation = treg.TransformationEstimationPointToPlane()
 	# estimation = treg.TransformationEstimationPointToPoint()
 
-	mu, sigma = 0, 0.1 # mean and standard deviation
+	mu, sigma = 0, 1.0 # mean and standard deviation
 	estimation = treg.TransformationEstimationPointToPlane(
-    treg.robust_kernel.RobustKernel(
-        treg.robust_kernel.RobustKernelMethod.CauchyLoss, sigma))
+	treg.robust_kernel.RobustKernel(
+		treg.robust_kernel.RobustKernelMethod.GMLoss))
+
+	# estimation = treg.TransformationEstimationPointToPoint()
 
 	# Save iteration wise `fitness`, `inlier_rmse`, etc. to analyse and tune result.
 	callback_after_iteration = lambda loss_log_map : print("Iteration Index: {}, Scale Index: {}, Scale Iteration Index: {}, Fitness: {}, Inlier RMSE: {},".format(
@@ -129,9 +132,9 @@ def run_multiview_icp(source, target):
 		loss_log_map["inlier_rmse"].item()))
 
 	registration_ms_icp = treg.multi_scale_icp(source_cuda, target_cuda,
-                                           voxel_sizes, criteria_list,
-                                           max_correspondence_distances,
-                                           init_source_to_target, estimation,
+										   voxel_sizes, criteria_list,
+										   max_correspondence_distances,
+										   init_source_to_target, estimation,
 										   callback_after_iteration)
 
 	ms_icp_time = time.time() - s
@@ -142,44 +145,10 @@ def run_multiview_icp(source, target):
 	draw_registration_result(source, target, registration_ms_icp.transformation) 	
 
 
-def align_planes(source, target):
-	# source = o3d.io.read_point_cloud("source.ply")
-	# target = o3d.io.read_point_cloud("target.ply")
-
-	# Segment the planes in the source and target point clouds
-	source_plane, inliers_source = source.segment_plane(distance_threshold=0.01, ransac_n=3, num_iterations=1000)
-	target_plane, inliers_target = target.segment_plane(distance_threshold=0.01, ransac_n=3, num_iterations=1000)
-
-	# Compute the centroids of the source and target planes
-	centroid_source = np.mean(source_plane.points, axis=0)
-	centroid_target = np.mean(target_plane.points, axis=0)
-
-	# Compute the rotation and translation that align the source plane with the target plane
-	rotation, translation = o3d.geometry.get_rotation_and_translation(centroid_source, centroid_target, source_plane.points, target_plane.points)
-
-	# Apply the transformation to the source point cloud
-	transformed_source = o3d.geometry.transform_geometry(source_plane, o3d.geometry.Transformation(rotation, translation))
-
-	# Visualize the transformed source point cloud and the target point cloud
-	o3d.visualization.draw_geometries([transformed_source, target_plane], window_name="Transformed Source and Target Point Clouds")
-
-
-def run_plane_fitting(source, distance_threshold=0.1, ransac_n=300, num_iterations=1000):
 	
-	print(f"Number of points in the pcd: {np.asarray(source.to_legacy().points).shape[0]}")
-	
-	pcd_plane, inliers = source.segment_plane(distance_threshold=0.1, ransac_n=300, num_iterations=1000)
-	pcd_filtered = source.select_by_index(inliers)	
-
-	# print(f"type(pcd_filtere)")
-
-	source.paint_uniform_color([0.5, 1.0, 0.5])
-	pcd_filtered.paint_uniform_color([1.0, 1.0, 0.0])
-
-	# Visualize the original point cloud and the filtered point cloud
-	o3d.visualization.draw_geometries([source.to_legacy(), pcd_filtered.to_legacy()], window_name="Point Cloud Filtering")
-
-	return pcd_plane, inliers
+def numpy_to_pointcloud(points):
+	pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(points))
+	return pcd
 
 if __name__ == "__main__":
 	
@@ -188,19 +157,23 @@ if __name__ == "__main__":
 	
 	print(f"{o3d.__DEVICE_API__}")
 
-	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])	
+	frame1 = o3d.geometry.TriangleMesh.create_coordinate_frame(size=2, origin=[0, 0, 0])	
 
 	s = time.time()
 
 	source = o3d.t.io.read_point_cloud(lidar_path)	
-	target = o3d.t.io.read_point_cloud(svo_path)	
-
+	
+	target = o3d.t.io.read_point_cloud(svo_path)
+	
+	# target = target.voxel_down_sample(voxel_size=0.08)
+	
 	# tractor hood only
-	source = prepare_pcd(source, [0.0, -0.5, -1.0], [1.2 , 0.6, 1])
-	target = prepare_pcd(target, [-0.6, 0.0, 0.0], [0.6, 1.0, 2.0])
+	# source = prepare_pcd(source, [0.0, -0.5, -1.0], [1.2 , 0.6, 1])
+	# target = prepare_pcd(target, [-0.6, 0.0, 0.0], [0.6, 1.0, 2.0])
 	
 	# hood + vine row
-	# target = prepare_pcd(target, [-0.3, 0.3, -50.0], [0.4, 0.4, 2.0])
+	# source = prepare_pcd(source, [0.0, -5.0, -1.0], [10.0 , 5.0, 4.0])
+	# target = prepare_pcd(target, [-4.0, -10.0, -10.0], [4.0, 10.0, 10.0])
 	
 	
 	# target = target.voxel_down_sample(voxel_size=0.02)
@@ -214,15 +187,30 @@ if __name__ == "__main__":
 	# 	up=[-0.3402, -0.9189, -0.1996])
 	
 	# o3d.visualization.draw_geometries([ target.to_legacy(), frame1])	
+	# source = source.voxel_down_sample(voxel_size=0.02)
 	# o3d.visualization.draw_geometries([ source.to_legacy(), frame1])	
 	# o3d.visualization.draw_geometries([ source.to_legacy(), target.to_legacy(), frame1])	
 
-	# run_multiview_icp(source, target)
+	# target = target.voxel_down_sample(voxel_size=0.03)
+	run_multiview_icp(source, target)
 
-	# run_plane_fitting(source)
-	# run_plane_fitting(target)
+	# source plane segmentation
+	# source_plane, source_inliers = source.segment_plane(distance_threshold=0.1, ransac_n=300, num_iterations=1000)
+	# source_filtered = source.select_by_index(source_inliers)	
+
+	# source.paint_uniform_color([0.5, 1.0, 0.5])
+	# source_filtered.paint_uniform_color([1.0, 1.0, 0.0])
+	# o3d.visualization.draw_geometries([source.to_legacy(), source_filtered.to_legacy()], window_name="Point Cloud Filtering")	
+
+	# target plane segmentation
+	# target_plane, target_inliers = target.segment_plane(distance_threshold=0.01, ransac_n=30, num_iterations=1000)
+	# target_filtered = target.select_by_index(target_inliers)
+
+	# target.paint_uniform_color([0.5, 1.0, 0.5])
+	# target_filtered.paint_uniform_color([1.0, 1.0, 0.0])
+	# o3d.visualization.draw_geometries([target.to_legacy(), target_filtered.to_legacy()], window_name="Point Cloud Filtering")
 
 	
-
-	# Apply plane fitting
+	
+	
 	
